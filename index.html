@@ -79,6 +79,12 @@ class NeuralNetwork:
 
     def sigmoid_derivative(self, a):
         return a * (1 - a)
+    
+    def leaky_relu(self, z, alpha=0.01):
+        return np.where(z > 0, z, alpha * z)
+
+    def leaky_relu_derivative(self, z, alpha=0.01):
+        return np.where(z > 0, 1, alpha)
 
     def softmax(self, z):
         exp_z = np.exp(z - np.max(z, axis=1, keepdims=True))
