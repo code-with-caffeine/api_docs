@@ -36,6 +36,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.impute import SimpleImputer
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report, mean_squared_error
 import warnings
 warnings.filterwarnings('ignore')
@@ -49,7 +50,7 @@ def load_data(path):
 
 # 2. Basic EDA
 def basic_eda(df):
-    print("Missing Values:\n", df.isnull().sum())
+    print("eda")
     # print(df.info())
     # print(df.describe())
     # print("Missing Values:\n", df.isnull().sum())
@@ -65,11 +66,15 @@ def preprocess(df, target_col, ignore_cols=None):
     df = df.copy()
     if ignore_cols is not None:
         df.drop(columns=ignore_cols, inplace=True, errors='ignore')
+
     for col in df.select_dtypes(include='object').columns:
         df[col] = LabelEncoder().fit_transform(df[col].astype(str))
+
     df.fillna(df.median(numeric_only=True), inplace=True)
+
     X = df.drop(columns=[target_col])
     y = df[target_col]
+
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     return X_scaled, y
@@ -88,12 +93,18 @@ class NeuralNetwork:
 
     def sigmoid_derivative(self, a):
         return a * (1 - a)
-    
+
     def leaky_relu(self, z, alpha=0.01):
         return np.where(z > 0, z, alpha * z)
 
     def leaky_relu_derivative(self, z, alpha=0.01):
         return np.where(z > 0, 1, alpha)
+
+    def tanh(self,  z):
+        return np.tanh(z)
+
+    def tanh_derivative(self, z):
+        return 1 - np.tanh(z)**2
 
     def softmax(self, z):
         exp_z = np.exp(z - np.max(z, axis=1, keepdims=True))
@@ -126,69 +137,95 @@ class NeuralNetwork:
             y_encoded = self.one_hot(y, num_classes)
         else:
             y_encoded = y.values.reshape(-1, 1)
+
         for epoch in range(epochs):
             Z1 = X.dot(self.W1) + self.b1
-            A1 = self.sigmoid(Z1)
+            A1 = self.leaky_relu(Z1)
             Z2 = A1.dot(self.W2) + self.b2
             A2 = self.softmax(Z2) if self.mode == 'classification' else Z2
+
             loss = self.compute_loss(y_encoded, A2)
             if epoch % 10 == 0:
                 print(f"Epoch {epoch}, Loss: {loss:.4f}")
+
             if self.mode == 'classification':
                 dZ2 = A2 - y_encoded
             else:
                 dZ2 = 2 * (A2 - y_encoded) / m
+
             dW2 = A1.T.dot(dZ2) / m
             db2 = np.sum(dZ2, axis=0, keepdims=True) / m
             dA1 = dZ2.dot(self.W2.T)
-            dZ1 = dA1 * self.sigmoid_derivative(A1)
+            dZ1 = dA1 * self.leaky_relu_derivative(A1)
             dW1 = X.T.dot(dZ1) / m
             db1 = np.sum(dZ1, axis=0, keepdims=True) / m
+
             self.W1 -= lr * dW1
             self.b1 -= lr * db1
             self.W2 -= lr * dW2
             self.b2 -= lr * db2
 
     def predict(self, X):
-        A1 = self.sigmoid(X.dot(self.W1) + self.b1)
+        A1 = self.leaky_relu(X.dot(self.W1) + self.b1)
         A2 = self.softmax(A1.dot(self.W2) + self.b2) if self.mode == 'classification' else A1.dot(self.W2) + self.b2
         return np.argmax(A2, axis=1) if self.mode == 'classification' else A2.flatten()
 
-# Linear Regression from Scratch
+import numpy as np
+
 class LinearRegressionScratch:
-    def __init__(self, learning_rate=0.01, epochs=1000):
+    def __init__(self, learning_rate=0.01, epochs=3000):
         self.lr = learning_rate
         self.epochs = epochs
         self.w = None
         self.b = 0
 
     def fit(self, X, y):
+        # Convert to numpy array and ensure 2D shape
         X = np.array(X)
         y = np.array(y)
-        if X.ndim == 1: X = X.reshape(-1, 1)
-        if y.ndim == 1: y = y.reshape(-1, 1)
+
+        if X.ndim == 1:
+            X = X.reshape(-1, 1)
+        if y.ndim == 1:
+            y = y.reshape(-1, 1)
+
         n_samples, n_features = X.shape
+
+        # Initialize weights and bias
         self.w = np.zeros((n_features, 1))
         self.b = 0
+
         for _ in range(self.epochs):
             y_pred = X @ self.w + self.b
             error = y_pred - y
+
             dw = (2 / n_samples) * X.T @ error
             db = (2 / n_samples) * np.sum(error)
+
             self.w -= self.lr * dw
             self.b -= self.lr * db
 
     def predict(self, X):
         X = np.array(X)
-        if X.ndim == 1: X = X.reshape(-1, 1)
+        if X.ndim == 1:
+            X = X.reshape(-1, 1)
         return X @ self.w + self.b
+
 
 # 5. Train & Evaluate All Models
 def train_all_models(X, y):
     from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
     from sklearn.linear_model import LogisticRegression
+
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+    from sklearn.impute import SimpleImputer
+
+    imputer = SimpleImputer(strategy='mean')  # or 'median', 'most_frequent'
+    X_train = imputer.fit_transform(X_train)
+    X_val = imputer.transform(X_val)
+
     is_classification = y.nunique() < 20 and y.dtype in ['int', 'int64']
+
     if is_classification:
         models = {
             'RandomForest': RandomForestClassifier(),
@@ -218,13 +255,14 @@ def train_all_models(X, y):
             print(f"\n{name} MSE: {mse:.4f}")
 
     print("\nTraining Neural Network from scratch...")
-    input_size = X.shape[1]
+    input_size = X_train.shape[1]
     hidden_size = 16
     output_size = len(np.unique(y)) if is_classification else 1
     mode = 'classification' if is_classification else 'regression'
     nn = NeuralNetwork(input_size, hidden_size, output_size, mode='regression')
-    nn.train(X_train, y_train, epochs=2000, lr=0.5)
+    nn.train(X_train, y_train, epochs=3000, lr=0.5)
     nn_preds = nn.predict(X_val)
+
     if is_classification:
         print("\nNeural Network Accuracy:", accuracy_score(y_val, nn_preds))
         print(confusion_matrix(y_val, nn_preds))
@@ -236,9 +274,10 @@ def train_all_models(X, y):
 
 # 6. Main Driver Code
 if __name__ == "__main__":
-    filepath = 'cancer.csv'
-    target_column = 'Radius (mean)'
-    ignore_columns = ['Id']
+    filepath = 'cancer.csv'  
+    target_column = 'Radius (mean)'  
+    ignore_columns = ['Id']  
+
     df = load_data(filepath)
     basic_eda(df)
     X, y = preprocess(df, target_column, ignore_cols=ignore_columns)
