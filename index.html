@@ -1,4 +1,35 @@
-# import sys
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Python ML Code</title>
+  <style>
+    body {
+      font-family: 'Courier New', monospace;
+      background-color: #1e1e1e;
+      color: #dcdcdc;
+      padding: 20px;
+    }
+    pre {
+      background-color: #2d2d2d;
+      border-radius: 10px;
+      padding: 20px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+    code {
+      color: #d4d4d4;
+    }
+    h1 {
+      color: #61dafb;
+      font-family: Arial, sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <h1>Machine Learning Pipeline (Python Code)</h1>
+  <pre><code># import sys
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,30 +49,18 @@ def load_data(path):
 
 # 2. Basic EDA
 def basic_eda(df):
-    # print(df.info())
-    # print(df.describe())
     print("Missing Values:\n", df.isnull().sum())
-    
-    # for col in df.select_dtypes(include=np.number).columns:
-    #     plt.figure(figsize=(5,2))
-    #     sns.histplot(df[col], kde=True)
-    #     plt.title(f"Distribution of {col}")
-    #     plt.show()
 
 # 3. Preprocessing
 def preprocess(df, target_col, ignore_cols=None):
     df = df.copy()
     if ignore_cols is not None:
         df.drop(columns=ignore_cols, inplace=True, errors='ignore')
-
     for col in df.select_dtypes(include='object').columns:
         df[col] = LabelEncoder().fit_transform(df[col].astype(str))
-
     df.fillna(df.median(numeric_only=True), inplace=True)
-
     X = df.drop(columns=[target_col])
     y = df[target_col]
-
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     return X_scaled, y
@@ -74,16 +93,10 @@ class NeuralNetwork:
         if self.mode == 'classification':
             return -np.sum(y_true * np.log(y_pred + 1e-9)) / y_true.shape[0]
         else:
-            # delta = 0.2
-            # error = y_true - y_pred
-            # is_small_error = np.abs(error) <= delta
-            # squared_loss = 0.5 * error**2
-            # linear_loss = delta * (np.abs(error) - 0.5 * delta)
-            # return np.mean(np.where(is_small_error, squared_loss, linear_loss))
-            # return np.mean((y_true - y_pred) ** 2)
-            absolute = np.abs(y_true-y_pred)
+            absolute = np.abs(y_true - y_pred)
             is_small_error = absolute <= threshold_value
-            return np.mean(np.where(is_small_error, 0.5*(absolute**2), 0.5*(threshold_value*absolute-threshold_value)))
+            return np.mean(np.where(is_small_error, 0.5*(absolute**2), 0.5*(threshold_value*absolute - threshold_value)))
+
     def train(self, X, y, epochs=100, lr=0.01):
         m = X.shape[0]
         if self.mode == 'classification':
@@ -91,29 +104,24 @@ class NeuralNetwork:
             y_encoded = self.one_hot(y, num_classes)
         else:
             y_encoded = y.values.reshape(-1, 1)
-
         for epoch in range(epochs):
             Z1 = X.dot(self.W1) + self.b1
             A1 = self.sigmoid(Z1)
             Z2 = A1.dot(self.W2) + self.b2
             A2 = self.softmax(Z2) if self.mode == 'classification' else Z2
-
             loss = self.compute_loss(y_encoded, A2)
             if epoch % 10 == 0:
                 print(f"Epoch {epoch}, Loss: {loss:.4f}")
-
             if self.mode == 'classification':
                 dZ2 = A2 - y_encoded
             else:
                 dZ2 = 2 * (A2 - y_encoded) / m
-
             dW2 = A1.T.dot(dZ2) / m
             db2 = np.sum(dZ2, axis=0, keepdims=True) / m
             dA1 = dZ2.dot(self.W2.T)
             dZ1 = dA1 * self.sigmoid_derivative(A1)
             dW1 = X.T.dot(dZ1) / m
             db1 = np.sum(dZ1, axis=0, keepdims=True) / m
-
             self.W1 -= lr * dW1
             self.b1 -= lr * db1
             self.W2 -= lr * dW2
@@ -124,8 +132,7 @@ class NeuralNetwork:
         A2 = self.softmax(A1.dot(self.W2) + self.b2) if self.mode == 'classification' else A1.dot(self.W2) + self.b2
         return np.argmax(A2, axis=1) if self.mode == 'classification' else A2.flatten()
 
-import numpy as np
-
+# Linear Regression from Scratch
 class LinearRegressionScratch:
     def __init__(self, learning_rate=0.01, epochs=1000):
         self.lr = learning_rate
@@ -134,47 +141,32 @@ class LinearRegressionScratch:
         self.b = 0
 
     def fit(self, X, y):
-        # Convert to numpy array and ensure 2D shape
         X = np.array(X)
         y = np.array(y)
-
-        if X.ndim == 1:
-            X = X.reshape(-1, 1)
-        if y.ndim == 1:
-            y = y.reshape(-1, 1)
-
+        if X.ndim == 1: X = X.reshape(-1, 1)
+        if y.ndim == 1: y = y.reshape(-1, 1)
         n_samples, n_features = X.shape
-
-        # Initialize weights and bias
         self.w = np.zeros((n_features, 1))
         self.b = 0
-
         for _ in range(self.epochs):
             y_pred = X @ self.w + self.b
             error = y_pred - y
-
             dw = (2 / n_samples) * X.T @ error
             db = (2 / n_samples) * np.sum(error)
-
             self.w -= self.lr * dw
             self.b -= self.lr * db
 
     def predict(self, X):
         X = np.array(X)
-        if X.ndim == 1:
-            X = X.reshape(-1, 1)
+        if X.ndim == 1: X = X.reshape(-1, 1)
         return X @ self.w + self.b
-
 
 # 5. Train & Evaluate All Models
 def train_all_models(X, y):
     from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
     from sklearn.linear_model import LogisticRegression
-
     X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
-
     is_classification = y.nunique() < 20 and y.dtype in ['int', 'int64']
-
     if is_classification:
         models = {
             'RandomForest': RandomForestClassifier(),
@@ -211,25 +203,22 @@ def train_all_models(X, y):
     nn = NeuralNetwork(input_size, hidden_size, output_size, mode='regression')
     nn.train(X_train, y_train, epochs=2000, lr=0.5)
     nn_preds = nn.predict(X_val)
-
     if is_classification:
         print("\nNeural Network Accuracy:", accuracy_score(y_val, nn_preds))
         print(confusion_matrix(y_val, nn_preds))
         print(classification_report(y_val, nn_preds))
     else:
         print("\nNeural Network MSE:", mean_squared_error(y_val, nn_preds))
-        # print("y_val",y_val)
-        # print("npred", nn_preds)
 
 # 6. Main Driver Code
 if __name__ == "__main__":
-    filepath = 'cancer.csv'  
-    target_column = 'Radius (mean)'  
-    ignore_columns = ['Id']  
-
+    filepath = 'cancer.csv'
+    target_column = 'Radius (mean)'
+    ignore_columns = ['Id']
     df = load_data(filepath)
     basic_eda(df)
     X, y = preprocess(df, target_column, ignore_cols=ignore_columns)
     train_all_models(X, y)
-
-
+</code></pre>
+</body>
+</html>
