@@ -50,6 +50,15 @@ def load_data(path):
 # 2. Basic EDA
 def basic_eda(df):
     print("Missing Values:\n", df.isnull().sum())
+    # print(df.info())
+    # print(df.describe())
+    # print("Missing Values:\n", df.isnull().sum())
+    
+    # for col in df.select_dtypes(include=np.number).columns:
+    #     plt.figure(figsize=(5,2))
+    #     sns.histplot(df[col], kde=True)
+    #     plt.title(f"Distribution of {col}")
+    #     plt.show()
 
 # 3. Preprocessing
 def preprocess(df, target_col, ignore_cols=None):
@@ -99,9 +108,16 @@ class NeuralNetwork:
         if self.mode == 'classification':
             return -np.sum(y_true * np.log(y_pred + 1e-9)) / y_true.shape[0]
         else:
-            absolute = np.abs(y_true - y_pred)
-            is_small_error = absolute <= threshold_value
-            return np.mean(np.where(is_small_error, 0.5*(absolute**2), 0.5*(threshold_value*absolute - threshold_value)))
+            threshold_value = 0.2
+            error = y_true - y_pred
+            is_small_error = np.abs(error) <= threshold_value
+            squared_loss = 0.5 * error**2
+            linear_loss = threshold_value * (np.abs(error) - 0.5 * threshold_value)
+            return np.mean(np.where(is_small_error, squared_loss, linear_loss))
+            return np.mean((y_true - y_pred) ** 2)
+            # absolute = np.abs(y_true-y_pred)
+            # is_small_error = absolute <= threshold_value
+            # return np.mean(np.where(is_small_error, 0.5*(absolute**2), 0.5*(threshold_value*absolute-threshold_value)))
 
     def train(self, X, y, epochs=100, lr=0.01):
         m = X.shape[0]
@@ -215,6 +231,8 @@ def train_all_models(X, y):
         print(classification_report(y_val, nn_preds))
     else:
         print("\nNeural Network MSE:", mean_squared_error(y_val, nn_preds))
+        # print("y_val",y_val)
+        # print("npred", nn_preds)
 
 # 6. Main Driver Code
 if __name__ == "__main__":
